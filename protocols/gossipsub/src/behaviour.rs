@@ -52,7 +52,10 @@ use crate::error::{PublishError, SubscriptionError, ValidationError};
 use crate::gossip_promises::GossipPromises;
 use crate::handler::{GossipsubHandler, GossipsubHandlerIn, HandlerEvent};
 use crate::mcache::MessageCache;
-use crate::metrics::{Churn, Config as MetricsConfig, Inclusion, Metrics, Penalty};
+use crate::metrics::{
+    Churn, ChurnLabel, Config as MetricsConfig, HistBuilder, Inclusion, InclusionLabel, Metrics,
+    Penalty, PenaltyLabel, ProtocolLabel,
+};
 use crate::peer_score::{PeerScore, PeerScoreParams, PeerScoreThresholds, RejectReason};
 use crate::protocol::{ProtocolConfig, SIGNING_PREFIX};
 use crate::subscription_filter::{AllowAllSubscriptionFilter, TopicSubscriptionFilter};
@@ -65,6 +68,11 @@ use crate::types::{
 };
 use crate::types::{GossipsubRpc, PeerConnections, PeerKind};
 use crate::{rpc_proto, TopicScoreParams};
+use prometheus_client::metrics::counter::Counter;
+use prometheus_client::metrics::family::Family;
+use prometheus_client::metrics::gauge::Gauge;
+use prometheus_client::metrics::histogram::Histogram;
+use prometheus_client::registry::IntoMetric;
 use std::{cmp::Ordering::Equal, fmt::Debug};
 use wasm_timer::Interval;
 
@@ -339,12 +347,23 @@ where
     /// Creates a [`Gossipsub`] struct given a set of parameters specified via a
     /// [`GossipsubConfig`]. This has no subscription filter and uses no compression.
     /// Metrics can be evaluated by passing a reference to a [`Registry`].
-    pub fn new_with_metrics(
+    pub fn new_with_metrics<M>(
         privacy: MessageAuthenticity,
         config: GossipsubConfig,
-        metrics_registry: &mut Registry,
+        metrics_registry: &mut Registry<M>,
         metrics_config: MetricsConfig,
-    ) -> Result<Self, &'static str> {
+    ) -> Result<Self, &'static str>
+    where
+        Family<TopicHash, Gauge>: IntoMetric<Metric = M>,
+        Family<TopicHash, Histogram, HistBuilder>: IntoMetric<Metric = M>,
+        Family<ProtocolLabel, Gauge>: IntoMetric<Metric = M>,
+        Counter: IntoMetric<Metric = M>,
+        Family<PenaltyLabel, Counter>: IntoMetric<Metric = M>,
+        Family<TopicHash, Counter>: IntoMetric<Metric = M>,
+        Family<ChurnLabel, Counter>: IntoMetric<Metric = M>,
+        Histogram: IntoMetric<Metric = M>,
+        Family<InclusionLabel, Counter>: IntoMetric<Metric = M>,
+    {
         Self::new_with_subscription_filter_and_transform(
             privacy,
             config,
@@ -362,12 +381,23 @@ where
 {
     /// Creates a [`Gossipsub`] struct given a set of parameters specified via a
     /// [`GossipsubConfig`] and a custom subscription filter.
-    pub fn new_with_subscription_filter(
+    pub fn new_with_subscription_filter<M>(
         privacy: MessageAuthenticity,
         config: GossipsubConfig,
-        metrics: Option<(&mut Registry, MetricsConfig)>,
+        metrics: Option<(&mut Registry<M>, MetricsConfig)>,
         subscription_filter: F,
-    ) -> Result<Self, &'static str> {
+    ) -> Result<Self, &'static str>
+    where
+        Family<TopicHash, Gauge>: IntoMetric<Metric = M>,
+        Family<TopicHash, Histogram, HistBuilder>: IntoMetric<Metric = M>,
+        Family<ProtocolLabel, Gauge>: IntoMetric<Metric = M>,
+        Counter: IntoMetric<Metric = M>,
+        Family<PenaltyLabel, Counter>: IntoMetric<Metric = M>,
+        Family<TopicHash, Counter>: IntoMetric<Metric = M>,
+        Family<ChurnLabel, Counter>: IntoMetric<Metric = M>,
+        Histogram: IntoMetric<Metric = M>,
+        Family<InclusionLabel, Counter>: IntoMetric<Metric = M>,
+    {
         Self::new_with_subscription_filter_and_transform(
             privacy,
             config,
@@ -385,12 +415,23 @@ where
 {
     /// Creates a [`Gossipsub`] struct given a set of parameters specified via a
     /// [`GossipsubConfig`] and a custom data transform.
-    pub fn new_with_transform(
+    pub fn new_with_transform<M>(
         privacy: MessageAuthenticity,
         config: GossipsubConfig,
-        metrics: Option<(&mut Registry, MetricsConfig)>,
+        metrics: Option<(&mut Registry<M>, MetricsConfig)>,
         data_transform: D,
-    ) -> Result<Self, &'static str> {
+    ) -> Result<Self, &'static str>
+    where
+        Family<TopicHash, Gauge>: IntoMetric<Metric = M>,
+        Family<TopicHash, Histogram, HistBuilder>: IntoMetric<Metric = M>,
+        Family<ProtocolLabel, Gauge>: IntoMetric<Metric = M>,
+        Counter: IntoMetric<Metric = M>,
+        Family<PenaltyLabel, Counter>: IntoMetric<Metric = M>,
+        Family<TopicHash, Counter>: IntoMetric<Metric = M>,
+        Family<ChurnLabel, Counter>: IntoMetric<Metric = M>,
+        Histogram: IntoMetric<Metric = M>,
+        Family<InclusionLabel, Counter>: IntoMetric<Metric = M>,
+    {
         Self::new_with_subscription_filter_and_transform(
             privacy,
             config,
@@ -408,13 +449,24 @@ where
 {
     /// Creates a [`Gossipsub`] struct given a set of parameters specified via a
     /// [`GossipsubConfig`] and a custom subscription filter and data transform.
-    pub fn new_with_subscription_filter_and_transform(
+    pub fn new_with_subscription_filter_and_transform<M>(
         privacy: MessageAuthenticity,
         config: GossipsubConfig,
-        metrics: Option<(&mut Registry, MetricsConfig)>,
+        metrics: Option<(&mut Registry<M>, MetricsConfig)>,
         subscription_filter: F,
         data_transform: D,
-    ) -> Result<Self, &'static str> {
+    ) -> Result<Self, &'static str>
+    where
+        Family<TopicHash, Gauge>: IntoMetric<Metric = M>,
+        Family<TopicHash, Histogram, HistBuilder>: IntoMetric<Metric = M>,
+        Family<ProtocolLabel, Gauge>: IntoMetric<Metric = M>,
+        Counter: IntoMetric<Metric = M>,
+        Family<PenaltyLabel, Counter>: IntoMetric<Metric = M>,
+        Family<TopicHash, Counter>: IntoMetric<Metric = M>,
+        Family<ChurnLabel, Counter>: IntoMetric<Metric = M>,
+        Histogram: IntoMetric<Metric = M>,
+        Family<InclusionLabel, Counter>: IntoMetric<Metric = M>,
+    {
         // Set up the router given the configuration settings.
 
         // We do not allow configurations where a published message would also be rejected if it

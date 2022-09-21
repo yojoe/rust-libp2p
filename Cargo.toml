@@ -157,6 +157,9 @@ members = [
     "transports/wasm-ext"
 ]
 
+[patch.crates-io]
+"prometheus-client" = { git = "https://github.com/thomaseizinger/client_rust.git", branch = "hack-into-metric" }
+
 [[example]]
 name = "chat"
 required-features = ["floodsub"]
