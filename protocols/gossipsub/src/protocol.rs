@@ -583,7 +583,7 @@ mod tests {
             // generate an arbitrary GossipsubMessage using the behaviour signing functionality
             let config = GossipsubConfig::default();
             let gs: Gossipsub = Gossipsub::new(
-                crate::MessageAuthenticity::Signed(keypair.0.clone()),
+                crate::MessageAuthenticity::Signed(keypair.0),
                 config,
             )
             .unwrap();
@@ -602,8 +602,7 @@ mod tests {
         fn arbitrary(g: &mut Gen) -> Self {
             let topic_string: String = (0..g.gen_range(20..1024u32))
                 .map(|_| char::arbitrary(g))
-                .collect::<String>()
-                .into();
+                .collect::<String>();
             TopicId(Topic::new(topic_string).into())
         }
     }
@@ -654,7 +653,7 @@ mod tests {
 
             let mut codec = GossipsubCodec::new(codec::UviBytes::default(), ValidationMode::Strict);
             let mut buf = BytesMut::new();
-            codec.encode(rpc.clone().into_protobuf(), &mut buf).unwrap();
+            codec.encode(rpc.into_protobuf(), &mut buf).unwrap();
             let decoded_rpc = codec.decode(&mut buf).unwrap().unwrap();
             // mark as validated as its a published message
             match decoded_rpc {

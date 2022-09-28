@@ -287,7 +287,7 @@ mod tests {
     #[test]
     fn extract_peer_id_from_multi_address() {
         let address =
-            format!("/memory/1234/p2p/12D3KooWGQmdpzHXCqLno4mMxWXKNFQHASBeF99gTm2JR8Vu5Bdc")
+            "/memory/1234/p2p/12D3KooWGQmdpzHXCqLno4mMxWXKNFQHASBeF99gTm2JR8Vu5Bdc".to_string()
                 .parse()
                 .unwrap();
 
@@ -303,7 +303,7 @@ mod tests {
 
     #[test]
     fn no_panic_on_extract_peer_id_from_multi_address_if_not_present() {
-        let address = format!("/memory/1234").parse().unwrap();
+        let address = "/memory/1234".to_string().parse().unwrap();
 
         let maybe_empty = PeerId::try_from_multiaddr(&address);
 
