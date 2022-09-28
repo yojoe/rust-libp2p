@@ -271,12 +271,8 @@ where
         } else {
             assert_eq!(other_established, 0)
         }
-        self.inject_connection_established.push((
-            *p,
-            *c,
-            e.clone(),
-            other_established,
-        ));
+        self.inject_connection_established
+            .push((*p, *c, e.clone(), other_established));
         self.inner
             .inject_connection_established(p, c, e, errors, other_established);
     }

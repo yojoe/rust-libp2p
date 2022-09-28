@@ -286,10 +286,10 @@ mod tests {
 
     #[test]
     fn extract_peer_id_from_multi_address() {
-        let address =
-            "/memory/1234/p2p/12D3KooWGQmdpzHXCqLno4mMxWXKNFQHASBeF99gTm2JR8Vu5Bdc".to_string()
-                .parse()
-                .unwrap();
+        let address = "/memory/1234/p2p/12D3KooWGQmdpzHXCqLno4mMxWXKNFQHASBeF99gTm2JR8Vu5Bdc"
+            .to_string()
+            .parse()
+            .unwrap();
 
         let peer_id = PeerId::try_from_multiaddr(&address).unwrap();
 

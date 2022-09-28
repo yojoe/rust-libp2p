@@ -582,11 +582,8 @@ mod tests {
 
             // generate an arbitrary GossipsubMessage using the behaviour signing functionality
             let config = GossipsubConfig::default();
-            let gs: Gossipsub = Gossipsub::new(
-                crate::MessageAuthenticity::Signed(keypair.0),
-                config,
-            )
-            .unwrap();
+            let gs: Gossipsub =
+                Gossipsub::new(crate::MessageAuthenticity::Signed(keypair.0), config).unwrap();
             let data = (0..g.gen_range(10..10024u32))
                 .map(|_| u8::arbitrary(g))
                 .collect::<Vec<_>>();

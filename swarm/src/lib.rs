@@ -2139,16 +2139,11 @@ mod tests {
                         .addresses(vec![addr.clone()])
                         .build(),
                 )
-                .ok()
                 .expect("Unexpected connection limit.");
         }
 
         match network
-            .dial(
-                DialOpts::peer_id(target)
-                    .addresses(vec![addr])
-                    .build(),
-            )
+            .dial(DialOpts::peer_id(target).addresses(vec![addr]).build())
             .expect_err("Unexpected dialing success.")
         {
             DialError::ConnectionLimit(limit) => {

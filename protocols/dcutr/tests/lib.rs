@@ -53,7 +53,6 @@ fn connect() {
     let mut dst = build_client();
     let dst_peer_id = *dst.local_peer_id();
     let dst_relayed_addr = relay_addr
-        
         .with(Protocol::P2p(relay_peer_id.into()))
         .with(Protocol::P2pCircuit)
         .with(Protocol::P2p(dst_peer_id.into()));
@@ -141,8 +140,6 @@ fn build_transport<StreamSink>(
 where
     StreamSink: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
-    
-
     transport
         .upgrade(Version::V1)
         .authenticate(PlainText2Config { local_public_key })
