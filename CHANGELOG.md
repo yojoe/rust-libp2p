@@ -52,6 +52,7 @@
 - Introduce [`libp2p-tls` `v0.1.0`](transports/tls/CHANGELOG.md#010). See [PR 2945].
 - Update individual crates.
   - Update to [`libp2p-tcp` `v0.38.0`](transports/tcp/CHANGELOG.md#0380).
+  - Update to [`libp2p-yamux` `v0.41.1`](muxers/yamux/CHANGELOG.md#0411).
 
 [PR 2945]: https://github.com/libp2p/rust-libp2p/pull/2945
 [PR 3001]: https://github.com/libp2p/rust-libp2p/pull/3001

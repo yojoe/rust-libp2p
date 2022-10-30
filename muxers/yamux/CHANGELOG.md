@@ -1,3 +1,10 @@
+# 0.41.1 [unreleased]
+
+- Allow configuration of `max_buffered_inbound_streams`. This limit was introduced in [0.40.0](#0.40.0) but was not
+  configurable until now. See [PR XXXX].
+
+[PR XXXX]: https://github.com/libp2p/rust-libp2p/pull/XXXX/
+
 # 0.41.0
 
 - Update to `libp2p-core` `v0.37.0`.
