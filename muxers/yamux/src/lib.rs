@@ -59,9 +59,9 @@ pub struct Yamux<S> {
     inbound_stream_buffer: VecDeque<yamux::Stream>,
     /// Waker to be called when new inbound streams are available.
     inbound_stream_waker: Option<Waker>,
+    /// Maximum number of inbound streams we will buffer before starting to drop them.
+    max_buffered_inbound_streams: usize,
 }
-
-const MAX_BUFFERED_INBOUND_STREAMS: usize = 25;
 
 impl<S> fmt::Debug for Yamux<S> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -74,7 +74,12 @@ where
     C: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
     /// Create a new Yamux connection.
-    fn new(io: C, cfg: yamux::Config, mode: yamux::Mode) -> Self {
+    fn new(
+        io: C,
+        cfg: yamux::Config,
+        mode: yamux::Mode,
+        max_buffered_inbound_streams: usize,
+    ) -> Self {
         let conn = yamux::Connection::new(io, cfg, mode);
         let ctrl = conn.control();
 
@@ -86,6 +91,7 @@ where
             control: ctrl,
             inbound_stream_buffer: VecDeque::default(),
             inbound_stream_waker: None,
+            max_buffered_inbound_streams,
         }
     }
 }
@@ -95,7 +101,12 @@ where
     C: AsyncRead + AsyncWrite + Unpin + 'static,
 {
     /// Create a new Yamux connection (which is ![`Send`]).
-    fn local(io: C, cfg: yamux::Config, mode: yamux::Mode) -> Self {
+    fn local(
+        io: C,
+        cfg: yamux::Config,
+        mode: yamux::Mode,
+        max_buffered_inbound_streams: usize,
+    ) -> Self {
         let conn = yamux::Connection::new(io, cfg, mode);
         let ctrl = conn.control();
 
@@ -107,6 +118,7 @@ where
             control: ctrl,
             inbound_stream_buffer: VecDeque::default(),
             inbound_stream_waker: None,
+            max_buffered_inbound_streams,
         }
     }
 }
@@ -150,7 +162,7 @@ where
 
         let inbound_stream = ready!(this.poll_inner(cx))?;
 
-        if this.inbound_stream_buffer.len() >= MAX_BUFFERED_INBOUND_STREAMS {
+        if this.inbound_stream_buffer.len() >= this.max_buffered_inbound_streams {
             log::warn!("dropping {inbound_stream} because buffer is full");
             drop(inbound_stream);
         } else {
@@ -204,6 +216,7 @@ where
 #[derive(Debug, Clone)]
 pub struct YamuxConfig {
     inner: yamux::Config,
+    max_buffered_inbound_streams: usize,
     mode: Option<yamux::Mode>,
 }
 
@@ -295,6 +308,12 @@ impl YamuxConfig {
         self
     }
 
+    /// Sets the limit for how many inbound streams will be buffered before we start dropping them.
+    pub fn set_max_buffered_inbound_streams(&mut self, limit: usize) -> &mut Self {
+        self.max_buffered_inbound_streams = limit;
+        self
+    }
+
     /// Converts the config into a [`YamuxLocalConfig`] for use with upgrades
     /// of I/O streams that are ![`Send`].
     pub fn into_local(self) -> YamuxLocalConfig {
@@ -308,7 +327,11 @@ impl Default for YamuxConfig {
         // For conformity with mplex, read-after-close on a multiplexed
         // connection is never permitted and not configurable.
         inner.set_read_after_close(false);
-        YamuxConfig { inner, mode: None }
+        YamuxConfig {
+            inner,
+            max_buffered_inbound_streams: 25,
+            mode: None,
+        }
     }
 }
 
@@ -340,7 +363,12 @@ where
 
     fn upgrade_inbound(self, io: C, _: Self::Info) -> Self::Future {
         let mode = self.mode.unwrap_or(yamux::Mode::Server);
-        future::ready(Ok(Yamux::new(io, self.inner, mode)))
+        future::ready(Ok(Yamux::new(
+            io,
+            self.inner,
+            mode,
+            self.max_buffered_inbound_streams,
+        )))
     }
 }
 
@@ -355,7 +383,12 @@ where
     fn upgrade_inbound(self, io: C, _: Self::Info) -> Self::Future {
         let cfg = self.0;
         let mode = cfg.mode.unwrap_or(yamux::Mode::Server);
-        future::ready(Ok(Yamux::local(io, cfg.inner, mode)))
+        future::ready(Ok(Yamux::local(
+            io,
+            cfg.inner,
+            mode,
+            cfg.max_buffered_inbound_streams,
+        )))
     }
 }
 
@@ -369,7 +402,12 @@ where
 
     fn upgrade_outbound(self, io: C, _: Self::Info) -> Self::Future {
         let mode = self.mode.unwrap_or(yamux::Mode::Client);
-        future::ready(Ok(Yamux::new(io, self.inner, mode)))
+        future::ready(Ok(Yamux::new(
+            io,
+            self.inner,
+            mode,
+            self.max_buffered_inbound_streams,
+        )))
     }
 }
 
@@ -384,7 +422,12 @@ where
     fn upgrade_outbound(self, io: C, _: Self::Info) -> Self::Future {
         let cfg = self.0;
         let mode = cfg.mode.unwrap_or(yamux::Mode::Client);
-        future::ready(Ok(Yamux::local(io, cfg.inner, mode)))
+        future::ready(Ok(Yamux::local(
+            io,
+            cfg.inner,
+            mode,
+            cfg.max_buffered_inbound_streams,
+        )))
     }
 }
 
